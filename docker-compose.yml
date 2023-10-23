@@ -1,0 +1,39 @@
+version: "3.8"
+
+networks:
+  auth:
+    driver: bridge
+  
+services:
+  postgres:
+    networks:
+      - auth
+    image: postgres:latest
+    container_name: auth_postgres
+    environment:
+      POSTGRES_DB: Auth
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 393406
+    ports:
+      - "5436:5432"
+    volumes:
+      - db:/var/lib/postgresql/data
+  
+  app:
+    networks:
+      - auth
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: app
+    ports: 
+      - 8080:8080
+    volumes: 
+      - .:/app 
+    depends_on:
+      - postgres
+
+volumes:
+  db:
+  
+

@@ -31,5 +31,5 @@ func Migrate() {
 	Conn.AutoMigrate(
 		&model.User{},
 	)
-	model.SeedData(Conn)
+	// model.SeedData(Conn)
 }

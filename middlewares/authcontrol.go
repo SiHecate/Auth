@@ -2,12 +2,11 @@ package middlewares
 
 import (
 	"Auth/utils"
-	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-func IsAuthorized() fiber.Handler {
+func IsAuthorized() func(*fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
 		cookie := c.Cookies("token")
 
@@ -25,9 +24,11 @@ func IsAuthorized() fiber.Handler {
 			})
 		}
 
-		asd := c.Locals(claims.Role, claims.StandardClaims)
+		c.Locals("Role", claims.Role)
+		c.Locals("Issuer", claims.Issuer)
+		c.Locals("Subject", claims.Subject)
+		c.Locals("Expire", claims.ExpiresAt)
 
-		fmt.Println(asd)
 		return c.Next()
 	}
 }

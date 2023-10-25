@@ -18,7 +18,7 @@ func Connect() {
 }
 
 func Database() {
-	dsn := "host=postgres user=postgres password=393406 dbname=Auth port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+	dsn := "host=postgres user=postgres password=393406 dbname=skypia port=5432 sslmode=disable TimeZone=Asia/Shanghai"
 	var err error
 	Conn, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {

@@ -5,7 +5,10 @@ import (
 	"Auth/models"
 	"Auth/utils"
 	"strconv"
+	"strings"
 	"time"
+
+	"Auth/helpers"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gofiber/fiber/v2"
@@ -15,25 +18,48 @@ import (
 func Signup(c *fiber.Ctx) error {
 	var signupRequest struct {
 		Name             string `json:"name"`
+		Lastname         string `json:"lastname"`
+		Username         string `json:"username"`
+		Gender           string `json:"gender"`
 		Email            string `json:"email"`
 		Password         string `json:"password"`
 		Password_confirm string `json:"password_confirm"`
 	}
 
+	signupRequest.Name = strings.TrimSpace(signupRequest.Name)
+	signupRequest.Lastname = strings.TrimSpace(signupRequest.Lastname)
+	signupRequest.Username = strings.TrimSpace(signupRequest.Username)
+	signupRequest.Email = strings.TrimSpace(signupRequest.Email)
+
 	if err := c.BodyParser(&signupRequest); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request data: " + err.Error()})
+	}
+
+	if signupRequest.Password != signupRequest.Password_confirm {
+		return c.Status(400).JSON(fiber.Map{"error": "Passwords do not match"})
+	}
+
+	if helpers.ValidEmail(signupRequest.Email) {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid email format"})
+	}
+
+	if helpers.StrongPassword(signupRequest.Password) {
+		return c.Status(400).JSON(fiber.Map{"error": "Password is not strong enough"})
 	}
 
 	var existingUser models.User
-
-	if signupRequest.Password != signupRequest.Password_confirm {
-		return c.Status(400).JSON(fiber.Map{"error": "password does not match"})
-	}
-
 	database.Conn.Where("email = ?", signupRequest.Email).First(&existingUser)
 
 	if existingUser.ID != 0 {
 		return c.Status(400).JSON(fiber.Map{"error": "user already exists"})
+	}
+
+	if existingUser.Username != "" {
+		return c.Status(400).JSON(fiber.Map{"error": "username already exists"})
+	}
+
+	if signupRequest.Gender != "Woman" && signupRequest.Gender != "Man" && signupRequest.Gender != "Other" {
+		return c.Status(400).JSON(fiber.Map{"error": "Gender must be either 'Woman','Man' or `Other`."})
 	}
 
 	var err error
@@ -44,17 +70,20 @@ func Signup(c *fiber.Ctx) error {
 
 	response := models.User{
 		Name:     signupRequest.Name,
+		Lastname: signupRequest.Lastname,
+		Username: signupRequest.Username,
+		Gender:   signupRequest.Gender,
 		Email:    signupRequest.Email,
 		Password: signupRequest.Password,
 		Role:     "User",
 	}
 
-	database.Conn.Create(&response)
+	if err := database.Conn.Create(&response).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "User creation failed"})
+	}
 
 	return c.JSON(response)
 }
-
-var jwtKey = []byte("my_secret_key")
 
 func Login(c *fiber.Ctx) error {
 	var loginRequest struct {
@@ -81,6 +110,7 @@ func Login(c *fiber.Ctx) error {
 			"message": "Invalid password",
 		})
 	}
+
 	expirationTime := time.Now().Add(60 * time.Minute)
 
 	claims := &models.Claims{
@@ -91,6 +121,8 @@ func Login(c *fiber.Ctx) error {
 			ExpiresAt: expirationTime.Unix(),
 		},
 	}
+
+	var jwtKey = []byte("my_secret_key")
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 

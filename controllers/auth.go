@@ -92,16 +92,14 @@ func Login(c *fiber.Ctx) error {
 	}
 
 	if err := c.BodyParser(&loginRequest); err != nil {
-		c.Status(400).JSON(fiber.Map{"error": err.Error()})
-		return err
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request data: " + err.Error()})
 	}
 
 	var existingUser models.User
+	database.Conn.Where("email = ?", loginRequest.Email).First(&existingUser)
 
-	if err := database.Conn.Where("email = ?", loginRequest.Email).First(&existingUser).Error; err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"message": "Invalid email",
-		})
+	if existingUser.ID == 0 {
+		return c.Status(401).JSON(fiber.Map{"error": "User not found"})
 	}
 
 	err := bcrypt.CompareHashAndPassword([]byte(existingUser.Password), []byte(loginRequest.Password))
@@ -110,6 +108,8 @@ func Login(c *fiber.Ctx) error {
 			"message": "Invalid password",
 		})
 	}
+
+	// JWT ************
 
 	expirationTime := time.Now().Add(60 * time.Minute)
 
